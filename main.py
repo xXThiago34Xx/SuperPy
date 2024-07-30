@@ -208,7 +208,8 @@ def print_menu():
 4. Mostrar Salidas
 5. Generar Pronóstico
 6. Tools (Completar EAN)
-7. Salir
+7. Configurar Min-Max de Cajas
+8. Salir
 ''')
     
 def print_day_selection_menu():
@@ -238,7 +239,7 @@ def get_ean13(cod):
     return cod[::-1] + str(check_digit)
 
 data_path = "schedule.csv"
-day = "Sabado"
+day = "Lunes"
 min_cajas = 5
 max_cajas = 15
 
@@ -260,7 +261,7 @@ def main():
             case 1:
                 clear()
                 # TODO: Implement input from pdf
-                data_path_op = input("Ingrese la ruta del archivo csv [defult: schedule.csv]: ")
+                data_path_op = input(f"Ingrese la ruta del archivo csv {data_path}: ")
                 if not check_path_exists(data_path):
                     data_path = data_path_op
                     input("Ruta seleccionada exitosamente. Presione cualquier tecla para continuar...")
@@ -271,10 +272,12 @@ def main():
                         input("Ruta seleccionada exitosamente. Presione cualquier tecla para continuar...")
                     else:
                         input("Ruta no seleccionada. Presione cualquier tecla para continuar...")
+                        continue
+                day_schedule_df = get_day_schedule(data_path, day)
             case 2:
                 clear()
                 print_day_selection_menu()
-                day_index = int(input("Ingrese el día a analizar [defult: Lunes]: "))
+                day_index = int(input(f"Ingrese el día a analizar [{day}]: "))
                 match day_index:
                     case 1:
                         day = "Lunes"
@@ -291,6 +294,7 @@ def main():
                     case 7:
                         day = "Domingo"
                 input(f"Día {day} seleccionado exitosamente. Presione cualquier tecla para continuar...")
+                day_schedule_df = get_day_schedule(data_path, day)
             case 3:
                 clear()
                 print_entrada(day_schedule_df)
@@ -314,6 +318,32 @@ def main():
                 print(f"El código EAN-13 es: {ean13}")
                 input("Presione cualquier tecla para continuar...")
             case 7:
+                clear()
+                min_cajas_op = input(f"Ingrese el número mínimo de cajas [{min_cajas}]: ")
+                try:
+                    int(min_cajas_op)
+                except:
+                    input("El número mínimo de cajas debe ser un número. Presione cualquier tecla para continuar...")
+                    continue
+
+                max_cajas_op = input(f"Ingrese el número máximo de cajas [{max_cajas}]: ")
+                try:
+                    int(max_cajas_op)
+                except:
+                    input("El número máximo de cajas debe ser un número. Presione cualquier tecla para continuar...")
+                    continue
+                
+                min_cajas_op = int(min_cajas_op)
+                max_cajas_op = int(max_cajas_op)
+
+                if (min_cajas_op > max_cajas_op):
+                    input("El número mínimo de cajas no puede ser mayor al número máximo de cajas. Presione cualquier tecla para continuar...")
+                else:
+                    min_cajas = min_cajas_op
+                    max_cajas = max_cajas_op
+                    input("Número de cajas actualizado exitosamente. Presione cualquier tecla para continuar...")
+                
+            case 8:
                 break
             case default:
                 pass
