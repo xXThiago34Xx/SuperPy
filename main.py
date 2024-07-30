@@ -1,6 +1,9 @@
 import pandas as pd
 from PyPDF2 import PdfReader
 import os
+import warnings
+
+warnings.simplefilter(action='ignore', category=UserWarning)
 
 def read_pdf(pdf_path):
     reader = PdfReader(pdf_path)
@@ -115,6 +118,12 @@ def get_day_schedule(data_path, day):
     day_schedule_df = day_schedule_df[day_schedule_df[day] != "VACACIONES"]
     day_schedule_df = day_schedule_df[day_schedule_df[day] != "PAGO HORAS FERIADO"]
 
+    if (day_schedule_df.empty):
+        day_schedule_df["Nombre"] = []
+        day_schedule_df["Entrada"] = []
+        day_schedule_df["Salida"] = []
+        return day_schedule_df
+
     # use threat_cell function to threat the cell
     day_schedule_df["Entrada"], day_schedule_df["Salida"] = zip(*day_schedule_df[day].map(threat_cell))
 
@@ -131,17 +140,18 @@ def threat_cell(cell):
     if cell in ["DIA DE DESCANSO", "VACACIONES", "PAGO HORAS FERIADO"]:
         return cell, cell
     else:
-        entrada = cell.split(" - ")[0]
-        salida = cell.split(" - ")[1]
+        sp = cell.split(" - ")
+        entrada = sp[0]
+        salida = sp[1]
         return entrada, salida
 
 #Entrada
 def print_entrada(day_schedule_df):
-    print(day_schedule_df.sort_values(by=["Entrada"]))
+    print(day_schedule_df.sort_values(by=["Entrada"])["Nombre", "Entrada"])
 
 #Salida
 def print_salida(day_schedule_df):
-    print(day_schedule_df.sort_values(by=["Salida"]))
+    print(day_schedule_df.sort_values(by=["Salida"])["Nombre", "Salida"])
 
 #To Excel
 
@@ -352,6 +362,7 @@ pdf_path = "./horarios/Horario 01-07.24.pdf"
 first_cajero = "BARRIENTOS JERI, MILAGROS NICOL"
 first_rs = "ANTIALON MONDRAGON, JHEREMY"
 
+get_schedule(pdf_path, first_cajero, first_rs)
 day_schedule_df = get_day_schedule(data_path, day)
 
 def main():
@@ -391,11 +402,9 @@ def main():
                 clear()
                 print("Ingrese el nombre del primer cajero y el primer RS")
                 first_cajero_op = input(f"Primer cajero: [{first_cajero}]")
-                # TODO: Handle not existing cajero
                 if first_cajero_op != "":
                     first_cajero = first_cajero_op
                 first_rs_op = input(f"Primer RS: [{first_rs}]")
-                # TODO: Handle not existing rs
                 if first_rs_op != "":
                     first_rs = first_rs_op
                 get_schedule(pdf_path, first_cajero, first_rs)
@@ -414,20 +423,20 @@ def main():
                     case 2:
                         day = "Martes"
                     case 3:
-                        day = "Miercoles"
+                        day = "Miércoles"
                     case 4:
                         day = "Jueves"
                     case 5:
                         day = "Viernes"
                     case 6:
-                        day = "Sabado"
+                        day = "Sábado"
                     case 7:
                         day = "Domingo"
                     case default:
                         input("Día inválido. Presione cualquier tecla para continuar...")
                         continue
-                input(f"Día {day} seleccionado exitosamente. Presione cualquier tecla para continuar...")
                 day_schedule_df = get_day_schedule(data_path, day)
+                input(f"Día {day} seleccionado exitosamente. Presione cualquier tecla para continuar...")
             case 3:
                 clear()
                 print_entrada(day_schedule_df)

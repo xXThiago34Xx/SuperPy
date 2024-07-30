@@ -49,7 +49,9 @@ def format_cell(cellString: str):
 
 def get_schedule(pdf_path, first_cajero, first_rs, data_path="schedule.csv"):
     pdf_text = read_pdf(pdf_path)
-
+    print("DEBUG")
+    print(pdf_text)
+    print("---------------")
     # Find the first occurrence of the word "CAJEROS"
     start_index = pdf_text.find(first_cajero)
     end_index = pdf_text.find(first_rs)
