@@ -259,7 +259,8 @@ def main():
         match option:
             case 1:
                 clear()
-                data_path_op = input("Ingrese la ruta del archivo [defult: schedule.csv]: ")
+                # TODO: Implement input from pdf
+                data_path_op = input("Ingrese la ruta del archivo csv [defult: schedule.csv]: ")
                 if not check_path_exists(data_path):
                     data_path = data_path_op
                     input("Ruta seleccionada exitosamente. Presione cualquier tecla para continuar...")
@@ -317,4 +318,5 @@ def main():
             case default:
                 pass
 
-main()
+if __name__ == "__main__":
+    main()
