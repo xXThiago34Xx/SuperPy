@@ -49,10 +49,7 @@ def format_cell(cellString: str):
 
 def get_schedule(pdf_path, first_cajero, first_rs, data_path="schedule.csv"):
     pdf_text = read_pdf(pdf_path)
-    print("DEBUG")
-    print(pdf_text)
-    print("---------------")
-    # Find the first occurrence of the word "CAJEROS"
+
     start_index = pdf_text.find(first_cajero)
     end_index = pdf_text.find(first_rs)
 
@@ -75,12 +72,14 @@ def get_schedule(pdf_path, first_cajero, first_rs, data_path="schedule.csv"):
 
     while (i<n):
         if pdf_list[i] == "0/" and pdf_list[i+1][0].isdigit():
+            # Eliminar tiempo de PAGO HORAS FERIADO
             id = pdf_list[i+1].find(":") + 3
             pdf_list[i+1] = pdf_list[i+1][id:]
             if pdf_list[i+1] == "":
                 pdf_list.pop(i+1)
                 n-=1
         if not pdf_list[i][0].isdigit():
+            # Unir celdas que no son horas
             if not (i==0 or pdf_list[i-1][0].isdigit()):
                 pdf_list[i-1] += f" {pdf_list[i]}"
                 pdf_list.pop(i)

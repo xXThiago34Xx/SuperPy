@@ -145,13 +145,24 @@ def threat_cell(cell):
         salida = sp[1]
         return entrada, salida
 
+def print_day_schedule(day_schedule_df, sortby="Nombres", cols=["Nombres", "Entrada", "Salida"]):
+    clear()
+    sorted_df = day_schedule_df.sort_values(by=[sortby])[cols]
+    if (day_schedule_df.empty):
+        print("No hay registros para mostrar.")
+        return
+    print(sorted_df.assign(
+        Entrada=day_schedule_df["Entrada"].dt.strftime('%I:%M%p'),
+        Salida=day_schedule_df["Salida"].dt.strftime('%I:%M%p')
+    ))
+
 #Entrada
 def print_entrada(day_schedule_df):
-    print(day_schedule_df.sort_values(by=["Entrada"])["Nombre", "Entrada"])
+    print_day_schedule(day_schedule_df, "Entrada", ["Nombres", "Entrada", "Salida"])
 
 #Salida
 def print_salida(day_schedule_df):
-    print(day_schedule_df.sort_values(by=["Salida"])["Nombre", "Salida"])
+    print_day_schedule(day_schedule_df, "Salida", ["Nombres", "Salida", "Entrada"])
 
 #To Excel
 
@@ -249,6 +260,9 @@ def name_final_matrix(final_matrix):
     return named_matrix
 
 def get_final_matrix(day_schedule_df, min_cajas, max_cajas):
+    if (day_schedule_df.empty):
+        return []
+
     if (max_cajas > len(day_schedule_df)):
         max_cajas = len(day_schedule_df)
 
@@ -259,35 +273,36 @@ def get_final_matrix(day_schedule_df, min_cajas, max_cajas):
     min_tm = pd.to_datetime("00:00AM") - pd.to_datetime("00:00AM")
 
     for nro_cajas in range(min_cajas, max_cajas+1):
-        res = get_caja_matrix(nro_cajas, day_schedule_df)
-        tm = calcular_promedio_tiempos_muertos_matrix(res[0])
+        seg1_res = get_caja_matrix(nro_cajas, day_schedule_df)
+        tm = calcular_promedio_tiempos_muertos_matrix(seg1_res[0])
 
         if (nro_cajas == min_cajas):
             min_tm = tm
             n_cajas_optimo = nro_cajas
-            min_caja_matrix = res[0]
-            min_cajeros_no_asignados = res[1]
+            min_caja_matrix = seg1_res[0]
+            min_cajeros_no_asignados = seg1_res[1]
         else:
             if (tm < min_tm):
                 min_tm = tm
                 n_cajas_optimo = nro_cajas
-                min_caja_matrix = res[0]
-                min_cajeros_no_asignados = res[1]
+                min_caja_matrix = seg1_res[0]
+                min_cajeros_no_asignados = seg1_res[1]
 
     segmento1_matrix = sort_by_n_cajeros(min_caja_matrix)
 
     nro_cajas_restantes = max_cajas - n_cajas_optimo
 
     seg2_df = pd.DataFrame(min_cajeros_no_asignados, columns=['Nombres', 'Entrada', 'Salida'])
+
     seg2_df.sort_values(by=["Entrada"], inplace=True)
-    res = get_caja_matrix(nro_cajas_restantes, seg2_df)
-    segmento2_matrix = res[0]
-    no_asignados = res[1]
-
+    seg2_res = get_caja_matrix(nro_cajas_restantes, seg2_df)
+    segmento2_matrix = seg2_res[0]
     segmento2_matrix = sort_by_n_cajeros(segmento2_matrix)
-    seg3_df = pd.DataFrame(no_asignados, columns=['Nombres', 'Entrada', 'Salida'])
-    seg3_df.sort_values(by=["Entrada"], inplace=True)
 
+    no_asignados = seg2_res[1]
+    seg3_df = pd.DataFrame(no_asignados, columns=['Nombres', 'Entrada', 'Salida'])
+    
+    seg3_df.sort_values(by=["Entrada"], inplace=True)
     seg3_df["Entrada"] = seg3_df["Entrada"].dt.strftime('%I:%M%p')
     seg3_df["Salida"] = seg3_df["Salida"].dt.strftime('%I:%M%p')
 
@@ -299,6 +314,7 @@ def get_final_matrix(day_schedule_df, min_cajas, max_cajas):
     final_matrix.append(seg1_assig[2])
     final_matrix.append(seg2_assig[0])
     final_matrix.append(seg1_assig[0])
+
     for caja in seg1_assig[3:]:
         final_matrix.append(caja)
     for caja in seg2_assig[1:]:
@@ -326,6 +342,7 @@ def print_menu():
 6. Configurar Min-Max de Cajas
 7. Tools (Completar EAN)
 8. Salir
+9. [debug] Mostrar Horario 
 ''')
     
 def print_day_selection_menu():
@@ -388,18 +405,16 @@ def main():
             case 1:
                 clear()
                 pdf_path_op = input(f"Ingrese la ruta del archivo pdf {pdf_path}: ")
-                if not check_path_exists(pdf_path):
+                if pdf_path_op == "":
+                    pdf_path_op = pdf_path
+                
+                if check_path_exists(pdf_path):
                     pdf_path = pdf_path_op
                     input("Ruta seleccionada exitosamente. Presione cualquier tecla para continuar...")
                 else:
-                    op = input("El archivo ya existe. Desea sobreescribirlo? y/n: ")
-                    if op == "y":
-                        pdf_path = pdf_path_op
-                        input("Ruta seleccionada exitosamente. Presione cualquier tecla para continuar...")
-                    else:
-                        input("Ruta no seleccionada. Presione cualquier tecla para continuar...")
-                        continue
+                    input("La ruta ingresada no existe. Presione cualquier tecla para continuar...")
                 clear()
+
                 print("Ingrese el nombre del primer cajero y el primer RS")
                 first_cajero_op = input(f"Primer cajero: [{first_cajero}]")
                 if first_cajero_op != "":
@@ -407,8 +422,10 @@ def main():
                 first_rs_op = input(f"Primer RS: [{first_rs}]")
                 if first_rs_op != "":
                     first_rs = first_rs_op
+                
                 get_schedule(pdf_path, first_cajero, first_rs)
                 day_schedule_df = get_day_schedule(data_path, day)
+
             case 2:
                 clear()
                 print_day_selection_menu()
@@ -438,11 +455,9 @@ def main():
                 day_schedule_df = get_day_schedule(data_path, day)
                 input(f"Día {day} seleccionado exitosamente. Presione cualquier tecla para continuar...")
             case 3:
-                clear()
                 print_entrada(day_schedule_df)
                 input("Presione cualquier tecla para continuar...")
             case 4:
-                clear()
                 print_salida(day_schedule_df)
                 input("Presione cualquier tecla para continuar...")
             case 5:
@@ -486,6 +501,9 @@ def main():
                 input("Presione cualquier tecla para continuar...")
             case 8:
                 break
+            case 9:
+                print_day_schedule(day_schedule_df)
+                input("Presione cualquier tecla para continuar...")
             case default:
                 pass
 
