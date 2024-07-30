@@ -1,5 +1,111 @@
 import pandas as pd
+from PyPDF2 import PdfReader
 import os
+
+def read_pdf(pdf_path):
+    reader = PdfReader(pdf_path)
+    full_text = ""
+    for page in reader.pages:
+        page_text = page.extract_text()
+        index = page_text.find("Horario por centro de costo: Semanal (Excel)")
+        full_text += page_text[:index]
+    return full_text
+
+def format_schedule(schedule: str):
+    entrada = schedule.split("-")[0]
+    salida = schedule.split("-")[1]
+
+    am_format = "AM"
+    pm_format = "PM"
+
+    hora = int(entrada.split(":")[0])
+    if (int(hora) >= 12):
+        hora = "12"
+        entrada = f"{hora}:{entrada.split(':')[1]}"
+    
+    if (entrada[-1] == "a"):
+        entrada = entrada[:-1] + am_format
+    else:
+        entrada = entrada[:-1] + pm_format
+
+    hora = int(salida.split(":")[0])
+    if (int(hora) >= 12):
+        hora = "12"
+        salida = f"{hora}:{salida.split(':')[1]}"
+    if (salida[-1] == "a"):
+        salida = salida[:-1] + am_format
+    else:
+        salida = salida[:-1] + pm_format
+
+    return f"{entrada} - {salida}"
+
+def format_cell(cellString: str):
+    if cellString == "0[":
+        return "DIA DE DESCANSO"
+    if cellString == "0]":
+        return "VACACIONES"
+    if cellString == "0/":
+        return "PAGO HORAS FERIADO"
+    return format_schedule(cellString)
+
+def get_schedule(pdf_path, first_cajero, first_rs, data_path="schedule.csv"):
+    pdf_text = read_pdf(pdf_path)
+
+    # Find the first occurrence of the word "CAJEROS"
+    start_index = pdf_text.find(first_cajero)
+    end_index = pdf_text.find(first_rs)
+
+    pdf = pdf_text[start_index:end_index]
+
+    pdf = pdf.replace("RS", " ")
+    pdf = pdf.replace("SELF", " ")
+    pdf = pdf.replace("CAJEROS", " ")
+    pdf = pdf.replace(" x", " ")
+    pdf = pdf.replace("DIA DE\nDESCANSO 0:00", " 0[ ")
+    pdf = pdf.replace("DIA DE \nDESCANSO 0:00", " 0[ ")
+    pdf = pdf.replace("VACACIONES 0:00", " 0] ")
+    pdf = pdf.replace("PAGO HORAS\nFERIADO", " 0/ ")
+    pdf = pdf.replace("PAGO HORAS \nFERIADO", " 0/ ")
+
+    pdf_list = pdf.split()
+
+    i=0
+    n = len(pdf_list)
+
+    while (i<n):
+        if pdf_list[i] == "0/" and pdf_list[i+1][0].isdigit():
+            id = pdf_list[i+1].find(":") + 3
+            pdf_list[i+1] = pdf_list[i+1][id:]
+            if pdf_list[i+1] == "":
+                pdf_list.pop(i+1)
+                n-=1
+        if not pdf_list[i][0].isdigit():
+            if not (i==0 or pdf_list[i-1][0].isdigit()):
+                pdf_list[i-1] += f" {pdf_list[i]}"
+                pdf_list.pop(i)
+                n-=1
+                if pdf_list[i-1][-2].isdigit():
+                    pdf_list.insert(i, pdf_list[i-1][-13:])
+                    pdf_list[i-1] = pdf_list[i-1][:-13]
+                    n+=1
+                continue
+        i+=1
+
+    # Create a DataFrame
+    df = pd.DataFrame([pdf_list[i:i+8] for i in range(0, n, 8)])
+
+    df = df.rename(columns={0: "Nombres", 1: "Lunes", 2: "Martes", 3: "Miércoles", 4: "Jueves", 5: "Viernes", 6: "Sábado", 7: "Domingo"})
+
+    df["Lunes"] = df["Lunes"].apply(format_cell)
+    df["Martes"] = df["Martes"].apply(format_cell)
+    df["Miércoles"] = df["Miércoles"].apply(format_cell)
+    df["Jueves"] = df["Jueves"].apply(format_cell)
+    df["Viernes"] = df["Viernes"].apply(format_cell)
+    df["Sábado"] = df["Sábado"].apply(format_cell)
+    df["Domingo"] = df["Domingo"].apply(format_cell)
+
+    # export to csv with separtor ;
+    df.to_csv(data_path, sep=";", index=False)
 
 def get_day_schedule(data_path, day):
     df = pd.read_csv(data_path, sep=";")
@@ -7,6 +113,7 @@ def get_day_schedule(data_path, day):
     # where sea diferente de DIA DE DESCANSO o VACACIONES
     day_schedule_df = day_schedule_df[day_schedule_df[day] != "DIA DE DESCANSO"]
     day_schedule_df = day_schedule_df[day_schedule_df[day] != "VACACIONES"]
+    day_schedule_df = day_schedule_df[day_schedule_df[day] != "PAGO HORAS FERIADO"]
 
     # use threat_cell function to threat the cell
     day_schedule_df["Entrada"], day_schedule_df["Salida"] = zip(*day_schedule_df[day].map(threat_cell))
@@ -17,10 +124,11 @@ def get_day_schedule(data_path, day):
     day_schedule_df["Entrada"] = pd.to_datetime(day_schedule_df["Entrada"])
     day_schedule_df["Salida"] = pd.to_datetime(day_schedule_df["Salida"])
 
+    day_schedule_df.sort_values(by=["Entrada"], inplace=True)
     return day_schedule_df
 
 def threat_cell(cell):
-    if cell in ["DIA DE DESCANSO", "VACACIONES"]:
+    if cell in ["DIA DE DESCANSO", "VACACIONES", "PAGO HORAS FERIADO"]:
         return cell, cell
     else:
         entrada = cell.split(" - ")[0]
@@ -29,13 +137,11 @@ def threat_cell(cell):
 
 #Entrada
 def print_entrada(day_schedule_df):
-    day_schedule_df.sort_values(by=["Entrada"], inplace=True)
-    print(day_schedule_df)
+    print(day_schedule_df.sort_values(by=["Entrada"]))
 
 #Salida
 def print_salida(day_schedule_df):
-    day_schedule_df.sort_values(by=["Salida"], inplace=True)
-    print(day_schedule_df)
+    print(day_schedule_df.sort_values(by=["Salida"]))
 
 #To Excel
 
@@ -207,8 +313,8 @@ def print_menu():
 3. Mostrar Entradas
 4. Mostrar Salidas
 5. Generar Pronóstico
-6. Tools (Completar EAN)
-7. Configurar Min-Max de Cajas
+6. Configurar Min-Max de Cajas
+7. Tools (Completar EAN)
 8. Salir
 ''')
     
@@ -242,6 +348,9 @@ data_path = "schedule.csv"
 day = "Lunes"
 min_cajas = 5
 max_cajas = 15
+pdf_path = "./horarios/Horario 01-07.24.pdf"
+first_cajero = "BARRIENTOS JERI, MILAGROS NICOL"
+first_rs = "ANTIALON MONDRAGON, JHEREMY"
 
 day_schedule_df = get_day_schedule(data_path, day)
 
@@ -251,33 +360,54 @@ def main():
     global min_cajas
     global max_cajas
     global day_schedule_df
+    global pdf_path
+    global first_cajero
+    global first_rs
 
     while True:
         clear()
         print(f"SuperPy v1 - Día: {day}")
         print_menu()
-        option = int(input("Seleccione una opción: "))
+        try:
+            option = int(input("Seleccione una opción: "))
+        except:
+            input("Opción inválida. Presione cualquier tecla para continuar...")
+            continue
         match option:
             case 1:
                 clear()
-                # TODO: Implement input from pdf
-                data_path_op = input(f"Ingrese la ruta del archivo csv {data_path}: ")
-                if not check_path_exists(data_path):
-                    data_path = data_path_op
+                pdf_path_op = input(f"Ingrese la ruta del archivo pdf {pdf_path}: ")
+                if not check_path_exists(pdf_path):
+                    pdf_path = pdf_path_op
                     input("Ruta seleccionada exitosamente. Presione cualquier tecla para continuar...")
                 else:
                     op = input("El archivo ya existe. Desea sobreescribirlo? y/n: ")
                     if op == "y":
-                        data_path = data_path_op
+                        pdf_path = pdf_path_op
                         input("Ruta seleccionada exitosamente. Presione cualquier tecla para continuar...")
                     else:
                         input("Ruta no seleccionada. Presione cualquier tecla para continuar...")
                         continue
+                clear()
+                print("Ingrese el nombre del primer cajero y el primer RS")
+                first_cajero_op = input(f"Primer cajero: [{first_cajero}]")
+                # TODO: Handle not existing cajero
+                if first_cajero_op != "":
+                    first_cajero = first_cajero_op
+                first_rs_op = input(f"Primer RS: [{first_rs}]")
+                # TODO: Handle not existing rs
+                if first_rs_op != "":
+                    first_rs = first_rs_op
+                get_schedule(pdf_path, first_cajero, first_rs)
                 day_schedule_df = get_day_schedule(data_path, day)
             case 2:
                 clear()
                 print_day_selection_menu()
-                day_index = int(input(f"Ingrese el día a analizar [{day}]: "))
+                try:
+                    day_index = int(input(f"Ingrese el día a analizar [{day}]: "))
+                except:
+                    input("El día debe ser un número. Presione cualquier tecla para continuar...")
+                    continue
                 match day_index:
                     case 1:
                         day = "Lunes"
@@ -293,6 +423,9 @@ def main():
                         day = "Sabado"
                     case 7:
                         day = "Domingo"
+                    case default:
+                        input("Día inválido. Presione cualquier tecla para continuar...")
+                        continue
                 input(f"Día {day} seleccionado exitosamente. Presione cualquier tecla para continuar...")
                 day_schedule_df = get_day_schedule(data_path, day)
             case 3:
@@ -312,12 +445,6 @@ def main():
                 print(named_matrix_df)
                 input("Presione cualquier tecla para continuar...")
             case 6:
-                clear()
-                cod = input("Ingrese el código EAN-12: ")
-                ean13 = get_ean13(cod)
-                print(f"El código EAN-13 es: {ean13}")
-                input("Presione cualquier tecla para continuar...")
-            case 7:
                 clear()
                 min_cajas_op = input(f"Ingrese el número mínimo de cajas [{min_cajas}]: ")
                 try:
@@ -342,7 +469,12 @@ def main():
                     min_cajas = min_cajas_op
                     max_cajas = max_cajas_op
                     input("Número de cajas actualizado exitosamente. Presione cualquier tecla para continuar...")
-                
+            case 7:
+                clear()
+                cod = input("Ingrese el código EAN-12: ")
+                ean13 = get_ean13(cod)
+                print(f"El código EAN-13 es: {ean13}")
+                input("Presione cualquier tecla para continuar...")
             case 8:
                 break
             case default:
