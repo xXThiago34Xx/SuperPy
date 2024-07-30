@@ -1,3 +1,13 @@
+# UI - Console
+
+Title: SuperPy v1 - Día: (dia_seleccionado)
+1. Cargar Archivo (Input ruta)
+2. Seleccionar Dia (L-D, Todos)
+3. Mostrar Entradas
+4. Mostrar Salidas
+5. Generar Pronóstico
+6. Tools (Completar EAN)
+
 # Algoritmos de asignación de cajeros
 
 Algo 1: Toma un n cajas y completa optimizando **nr cajas**
