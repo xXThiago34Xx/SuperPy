@@ -142,7 +142,7 @@ def get_employees_list(pdf_list, self_amount=6):
 
     return employees_list
 
-def scrap_pdf(pdf_path, self_amount=6):
+def scrap_pdf(pdf_path, self_amount=6) -> list[Employee]:
     pdf_text = get_pdf_text(pdf_path)
     pdf_list = get_pdf_list(pdf_text)
     employees_list = get_employees_list(pdf_list, self_amount)

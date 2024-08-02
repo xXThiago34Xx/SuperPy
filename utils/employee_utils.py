@@ -69,6 +69,13 @@ class Day:
 
     def __str__(self) -> str:
         return f"{self.name} - {self.day_type} - {self.interval}"
+    
+    def to_dict(self):
+        return {
+            "day_type": self.day_type,
+            "start": self.interval.start.strftime("%I:%M%p") if self.interval.start else None,
+            "end": self.interval.end.strftime("%I:%M%p") if self.interval.end else None,
+        }
 
     def set_interval(self, interval: str):
         if self.day_type == "REGULAR":
@@ -85,13 +92,13 @@ class Day:
 
 class Schedule:
     def __init__(self):
-        self.monday = Day("Lunes")
-        self.tuesday = Day("Martes")
-        self.wednesday = Day("Miércoles")
-        self.thursday = Day("Jueves")
-        self.friday = Day("Viernes")
-        self.saturday = Day("Sábado")
-        self.sunday = Day("Domingo")
+        self.monday : Day = Day("Lunes")
+        self.tuesday : Day = Day("Martes")
+        self.wednesday : Day = Day("Miércoles")
+        self.thursday : Day = Day("Jueves")
+        self.friday : Day = Day("Viernes")
+        self.saturday : Day = Day("Sábado")
+        self.sunday : Day = Day("Domingo")
 
     def get_day_by_index(self, index):
         if index == 0:
@@ -132,3 +139,15 @@ class Employee:
 
     def __str__(self) -> str:
         return f"{self.name} - {self.category}"
+    
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "monday": self.schedule.monday.to_dict(),
+            "tuesday": self.schedule.tuesday.to_dict(),
+            "wednesday": self.schedule.wednesday.to_dict(),
+            "thursday": self.schedule.thursday.to_dict(),
+            "friday": self.schedule.friday.to_dict(),
+            "saturday": self.schedule.saturday.to_dict(),
+            "sunday": self.schedule.sunday.to_dict()
+        }
